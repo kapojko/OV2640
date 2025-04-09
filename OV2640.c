@@ -76,14 +76,14 @@ const uint8_t OV2640_RGB565RegTbl[][2] =
     0xFF, 0x00,	0xDA, 0x09,	0xD7, 0x03,	0xDF, 0x02,	0x33, 0xa0,	0x3C, 0x00,	0xe1, 0x67,
     0xff, 0x01,	0xe0, 0x00,	0xe1, 0x00,	0xe5, 0x00,	0xd7, 0x00,	0xda, 0x00,	0xe0, 0x00,
 };
-
+#include <stdio.h>
 bool OV2640_DefInit(const struct OV2640_Platform *platform) {
     // Power on and reset OV2640
-    platform->setNPwdnPin(false); //POWER ON
+    platform->setPwdnPin(false); //POWER ON
     platform->delayMs(10);
-    platform->setNResetPin(false); //Reset OV2640
+    platform->setResetPin(false); //Reset OV2640
     platform->delayMs(10);
-    platform->setNResetPin(true); //Reset End
+    platform->setResetPin(true); //Reset End
 
     platform->sccbWriteReg(OV2640_SCCB_ID, 0xFF, 0x01); //Register Bank Select Sensor address
 
@@ -98,6 +98,7 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
 
     uint16_t mid = (mid1 << 8) | mid0;
     if (mid != OV2640_MID) {
+        printf("OV2640_MID error: %ux\r\n", mid);
         return false;
     }
 
@@ -108,6 +109,7 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
 
     uint16_t pid = (pid1 << 8) | pid0;
     if (pid != OV2640_PID) {
+        printf("OV2640_PID error: %ux\r\n", pid);
         return false;
     }
 

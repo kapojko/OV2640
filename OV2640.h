@@ -19,8 +19,8 @@ struct OV2640_Platform {
     int (*sccbReadReg)(uint8_t sccbId, uint8_t regAddr, uint8_t *data);
     int (*sccbWriteReg)(uint8_t sccbId, uint8_t regAddr, uint8_t data);
 
-    void (*setNResetPin)(bool value);
-    void (*setNPwdnPin)(bool value);
+    void (*setResetPin)(bool value);
+    void (*setPwdnPin)(bool value);
 
     void (*delayMs)(int ms);
 };
