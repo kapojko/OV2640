@@ -23,9 +23,14 @@ struct OV2640_Platform {
     void (*setPwdnPin)(bool value);
 
     void (*delayMs)(int ms);
+    void (*debugPrint)(const char *fmt, ...);
 };
 
+bool OV2640_FullReset(const struct OV2640_Platform *platform);
+bool OV2640_SetDefInit(const struct OV2640_Platform *platform);
+
 bool OV2640_DefInit(const struct OV2640_Platform *platform);
+
 bool OV2640_SetJpegMode(const struct OV2640_Platform *platform);
 bool OV2640_SetOutSize(const struct OV2640_Platform *platform, uint16_t width, uint16_t height);
 bool OV2640_SetSpeed(const struct OV2640_Platform *platform, uint8_t Pclk_Div, uint8_t Xclk_Div);

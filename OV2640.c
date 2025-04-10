@@ -76,8 +76,8 @@ const uint8_t OV2640_RGB565RegTbl[][2] =
     0xFF, 0x00,	0xDA, 0x09,	0xD7, 0x03,	0xDF, 0x02,	0x33, 0xa0,	0x3C, 0x00,	0xe1, 0x67,
     0xff, 0x01,	0xe0, 0x00,	0xe1, 0x00,	0xe5, 0x00,	0xd7, 0x00,	0xda, 0x00,	0xe0, 0x00,
 };
-#include <stdio.h>
-bool OV2640_DefInit(const struct OV2640_Platform *platform) {
+
+bool OV2640_FullReset(const struct OV2640_Platform *platform) {
     // Power on and reset OV2640
     platform->setPwdnPin(false); //POWER ON
     platform->delayMs(10);
@@ -91,6 +91,10 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
 
     platform->delayMs(50);
 
+    return true;
+}
+
+bool OV2640_SetDefInit(const struct OV2640_Platform *platform) {
     //Read MID
     uint8_t mid0, mid1;
     platform->sccbReadReg(OV2640_SCCB_ID, 0x1C, &mid1);
@@ -98,7 +102,7 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
 
     uint16_t mid = (mid1 << 8) | mid0;
     if (mid != OV2640_MID) {
-        printf("OV2640_MID error: %ux\r\n", mid);
+        platform->debugPrint("OV2640_MID error: %x\r\n", mid);
         return false;
     }
 
@@ -109,7 +113,7 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
 
     uint16_t pid = (pid1 << 8) | pid0;
     if (pid != OV2640_PID) {
-        printf("OV2640_PID error: %ux\r\n", pid);
+        platform->debugPrint("OV2640_PID error: %x\r\n", pid);
         return false;
     }
 
@@ -118,7 +122,18 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
         platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_InitRegTbl[i][0], OV2640_InitRegTbl[i][1]);
     }
 
+    platform->debugPrint("OV2640 init OK: MID=%x PID=%x\r\n", mid, pid);
+
     return true;
+}
+
+bool OV2640_DefInit(const struct OV2640_Platform *platform) {
+    bool ok = true;
+
+    ok &= OV2640_FullReset(platform);
+    ok &= OV2640_SetDefInit(platform);
+
+    return ok;
 }
 
 bool OV2640_SetJpegMode(const struct OV2640_Platform *platform) {
