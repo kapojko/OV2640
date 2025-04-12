@@ -85,6 +85,8 @@ bool OV2640_FullReset(const struct OV2640_Platform *platform) {
     platform->delayMs(10);
     platform->setResetPin(true); //Reset End
 
+    platform->delayMs(50);
+
     platform->sccbWriteReg(OV2640_SCCB_ID, 0xFF, 0x01); //Register Bank Select Sensor address
 
     platform->sccbWriteReg(OV2640_SCCB_ID, 0x12, 0x80); //Reset All Register
