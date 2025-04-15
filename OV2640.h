@@ -26,7 +26,8 @@ struct OV2640_Platform {
     void (*debugPrint)(const char *fmt, ...);
 };
 
-bool OV2640_FullReset(const struct OV2640_Platform *platform);
+bool OV2640_HardwareReset(const struct OV2640_Platform *platform);
+bool OV2640_SoftwareReset(const struct OV2640_Platform *platform);
 bool OV2640_SetDefInit(const struct OV2640_Platform *platform);
 
 bool OV2640_DefInit(const struct OV2640_Platform *platform);

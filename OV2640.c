@@ -77,7 +77,7 @@ const uint8_t OV2640_RGB565RegTbl[][2] =
     0xff, 0x01,	0xe0, 0x00,	0xe1, 0x00,	0xe5, 0x00,	0xd7, 0x00,	0xda, 0x00,	0xe0, 0x00,
 };
 
-bool OV2640_FullReset(const struct OV2640_Platform *platform) {
+bool OV2640_HardwareReset(const struct OV2640_Platform *platform) {
     // Power on and reset OV2640
     platform->setPwdnPin(false); //POWER ON
     platform->delayMs(10);
@@ -87,8 +87,11 @@ bool OV2640_FullReset(const struct OV2640_Platform *platform) {
 
     platform->delayMs(50);
 
-    platform->sccbWriteReg(OV2640_SCCB_ID, 0xFF, 0x01); //Register Bank Select Sensor address
+    return true;
+}
 
+bool OV2640_SoftwareReset(const struct OV2640_Platform *platform) {
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0xFF, 0x01); //Register Bank Select Sensor address
     platform->sccbWriteReg(OV2640_SCCB_ID, 0x12, 0x80); //Reset All Register
 
     platform->delayMs(50);
@@ -132,7 +135,8 @@ bool OV2640_SetDefInit(const struct OV2640_Platform *platform) {
 bool OV2640_DefInit(const struct OV2640_Platform *platform) {
     bool ok = true;
 
-    ok &= OV2640_FullReset(platform);
+    ok &= OV2640_HardwareReset(platform);
+    ok &= OV2640_SoftwareReset(platform);
     ok &= OV2640_SetDefInit(platform);
 
     return ok;
