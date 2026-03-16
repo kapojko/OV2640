@@ -1,7 +1,8 @@
 #include "OV2640.h"
 
 /* Start Camera list of initialization configuration registers */
-const uint8_t OV2640_InitRegTbl[][2] =
+// const uint8_t OV2640_InitRegTbl[][2] =
+const uint8_t OV2640_InitRegTbl[] =
 {
     0xff, 0x00, 0x2c, 0xff,	0x2e, 0xdf,	0xff, 0x01,	0x3c, 0x32,
 
@@ -59,19 +60,22 @@ const uint8_t OV2640_InitRegTbl[][2] =
 };
 
 /* YUV422 */
-const uint8_t OV2640_YUV422RegTbl[][2] =
+// const uint8_t OV2640_YUV422RegTbl[][2] =
+const uint8_t OV2640_YUV422RegTbl[] =
 {
     0xFF, 0x00,	0xDA, 0x10,	0xD7, 0x03,	0xDF, 0x00,	0x33, 0x80,	0x3C, 0x40,	0xe1, 0x77,	0x00, 0x00,
 };
 
 /* JPEG */
-const uint8_t OV2640_JPEGRegTbl[][2] =
+// const uint8_t OV2640_JPEGRegTbl[][2] =
+const uint8_t OV2640_JPEGRegTbl[] =
 {
     0xff, 0x01,	0xe0, 0x14,	0xe1, 0x77,	0xe5, 0x1f,	0xd7, 0x03,	0xda, 0x10,	0xe0, 0x00,
 };
 
 /* RGB565 */
-const uint8_t OV2640_RGB565RegTbl[][2] =
+// const uint8_t OV2640_RGB565RegTbl[][2] =
+const uint8_t OV2640_RGB565RegTbl[] =
 {
     0xFF, 0x00,	0xDA, 0x09,	0xD7, 0x03,	0xDF, 0x02,	0x33, 0xa0,	0x3C, 0x00,	0xe1, 0x67,
     0xff, 0x01,	0xe0, 0x00,	0xe1, 0x00,	0xe5, 0x00,	0xd7, 0x00,	0xda, 0x00,	0xe0, 0x00,
@@ -100,10 +104,17 @@ bool OV2640_SoftwareReset(const struct OV2640_Platform *platform) {
 }
 
 bool OV2640_SetDefInit(const struct OV2640_Platform *platform) {
+    int res;
+
     //Read MID
     uint8_t mid0, mid1;
-    platform->sccbReadReg(OV2640_SCCB_ID, 0x1C, &mid1);
+    res = platform->sccbReadReg(OV2640_SCCB_ID, 0x1C, &mid1);
     platform->sccbReadReg(OV2640_SCCB_ID, 0x1D, &mid0);
+
+    if (res != 0) {
+        platform->debugPrint("OV2640 SCCB read error: %d\r\n", res);
+        return false;
+    }
 
     uint16_t mid = (mid1 << 8) | mid0;
     if (mid != OV2640_MID) {
@@ -123,8 +134,8 @@ bool OV2640_SetDefInit(const struct OV2640_Platform *platform) {
     }
 
     // Write initial registers
-    for (int i = 0; i < sizeof(OV2640_InitRegTbl) / 2; i++) {
-        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_InitRegTbl[i][0], OV2640_InitRegTbl[i][1]);
+    for (unsigned i = 0; i < sizeof(OV2640_InitRegTbl) / 2; i++) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_InitRegTbl[2*i], OV2640_InitRegTbl[2*i+1]);
     }
 
     platform->debugPrint("OV2640 init OK: MID=%x PID=%x\r\n", mid, pid);
@@ -146,13 +157,13 @@ bool OV2640_SetJpegMode(const struct OV2640_Platform *platform) {
     bool ok = true;
 
     //YUV422
-    for (int i = 0; i < (sizeof(OV2640_YUV422RegTbl) / 2); i++) {
-        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_YUV422RegTbl[i][0], OV2640_YUV422RegTbl[i][1]);
+    for (unsigned i = 0; i < (sizeof(OV2640_YUV422RegTbl) / 2); i++) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_YUV422RegTbl[2*i], OV2640_YUV422RegTbl[2*i+1]);
     }
 
     //JPEG
-    for (int i = 0; i < (sizeof(OV2640_JPEGRegTbl) / 2); i++) {
-        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_JPEGRegTbl[i][0], OV2640_JPEGRegTbl[i][1]);
+    for (unsigned i = 0; i < (sizeof(OV2640_JPEGRegTbl) / 2); i++) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_JPEGRegTbl[2*i], OV2640_JPEGRegTbl[2*i+1]);
     }
 
     ok &= OV2640_SetOutSize(platform, OV2640_JPEG_WIDTH, OV2640_JPEG_HEIGHT);
