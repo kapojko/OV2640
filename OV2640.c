@@ -67,6 +67,12 @@ const uint8_t OV2640_YUV422RegTbl[] =
 };
 
 /* JPEG */
+/* TODO: check
+    Also, a discrepancy check: In your JPEG table, you write to 0xDA while in Bank 1 (0xFF=0x01). According to the datasheet, 0xDA (IMAGE_MODE) is a Bank 0 register. If your code actually works, this implies either:
+    The register map differs from the preliminary datasheet, or
+    Your JPEG table relies on the preceding YUV422 table leaving the bank at 0, or
+    It's a typo in the snippet (should be a different register)
+*/
 // const uint8_t OV2640_JPEGRegTbl[][2] =
 const uint8_t OV2640_JPEGRegTbl[] =
 {
@@ -79,6 +85,29 @@ const uint8_t OV2640_RGB565RegTbl[] =
 {
     0xFF, 0x00,	0xDA, 0x09,	0xD7, 0x03,	0xDF, 0x02,	0x33, 0xa0,	0x3C, 0x00,	0xe1, 0x67,
     0xff, 0x01,	0xe0, 0x00,	0xe1, 0x00,	0xe5, 0x00,	0xd7, 0x00,	0xda, 0x00,	0xe0, 0x00,
+};
+
+/* RAW10 Bayer */
+const uint8_t OV2640_RAW10RegTbl[] =
+{
+    // === Bank 0: DSP/Sensor Interface ===
+    0xFF, 0x00,     // Select DSP bank
+    0x05, 0x01,     // R_BYPASS: Bypass DSP, sensor out directly (CRITICAL!)
+    0xDA, 0x04,     // IMAGE_MODE: RAW10 output (01 in bits 3:2)
+    0xD7, 0x03,     // R_DVP_SP: Output speed control
+    0xDF, 0x02,     // Format control (from RGB565)
+    0x33, 0xa0,     // Timing (from RGB565 - uncompressed)
+    0x3C, 0x00,     // Timing (from RGB565 - uncompressed)
+    0xe1, 0x67,     // DSP control (from RGB565)
+
+    // === Bank 1: Disable Compression ===
+    0xff, 0x01,     // Select Sensor bank
+    0xe0, 0x00,     // Disable JPEG-related functions
+    0xe1, 0x00,     // Clear compression control
+    0xe5, 0x00,     // Clear compression control
+    0xd7, 0x00,     // Reset output speed
+    0xda, 0x00,     // Reset image mode
+    0xe0, 0x00,     // Double reset for safety
 };
 
 bool OV2640_HardwareReset(const struct OV2640_Platform *platform) {
@@ -150,6 +179,21 @@ bool OV2640_DefInit(const struct OV2640_Platform *platform) {
     ok &= OV2640_SoftwareReset(platform);
     ok &= OV2640_SetDefInit(platform);
 
+    ok &= OV2640_SetJpegMode(platform);
+    ok &= OV2640_SetOutSize(platform, OV2640_DEF_WIDTH, OV2640_DEF_HEIGHT);
+    ok &= OV2640_SetSpeed(platform, OV2640_DEF_PCLK_DIV, OV2640_DEF_XCLK_DIV);
+
+    return ok;
+}
+
+bool OV2640_SetYUV422Mode(const struct OV2640_Platform *platform) {
+    bool ok = true;
+
+    //YUV422
+    for (unsigned i = 0; i < (sizeof(OV2640_YUV422RegTbl) / 2); i++) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_YUV422RegTbl[2*i], OV2640_YUV422RegTbl[2*i+1]);
+    }
+
     return ok;
 }
 
@@ -166,10 +210,112 @@ bool OV2640_SetJpegMode(const struct OV2640_Platform *platform) {
         platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_JPEGRegTbl[2*i], OV2640_JPEGRegTbl[2*i+1]);
     }
 
-    ok &= OV2640_SetOutSize(platform, OV2640_JPEG_WIDTH, OV2640_JPEG_HEIGHT);
-    ok &= OV2640_SetSpeed(platform, 30, 1);
+    return ok;
+}
+
+bool OV2640_SetRGB565Mode(const struct OV2640_Platform *platform) {
+    bool ok = true;
+
+    //RGB565
+    for (unsigned i = 0; i < (sizeof(OV2640_RGB565RegTbl) / 2); i++) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_RGB565RegTbl[2*i], OV2640_RGB565RegTbl[2*i+1]);
+    }
 
     return ok;
+}
+
+bool OV2640_SetRAW10Mode(const struct OV2640_Platform *platform) {
+    bool ok = true;
+
+    //RAW10
+    for (unsigned i = 0; i < (sizeof(OV2640_RAW10RegTbl) / 2); i++) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, OV2640_RAW10RegTbl[2*i], OV2640_RAW10RegTbl[2*i+1]);
+    }
+
+    return ok;
+}
+
+bool OV2640_SetResolution(const struct OV2640_Platform *platform, OV2640_Resolution_t res) {
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0xFF, 0x01);  // Bank 1 (Sensor)
+
+    uint8_t com7;
+    platform->sccbReadReg(OV2640_SCCB_ID, 0x12, &com7);  // Read current COM7
+
+    com7 &= ~0x70;  // Clear bits [6:4]
+    com7 |= (res << 4) & 0x70;  // Set new resolution (shift enum to position)
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x12, com7);
+
+    // Set appropriate default window registers for the selected resolution
+    // These ensure the sensor outputs the correct active area for the mode
+    if (res == OV2640_RES_UXGA) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x17, 0x11);  // HREFST[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x18, 0x75);  // HREFEND[7:0] (UXGA width)
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x19, 0x01);  // VSTRT[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x1A, 0x97);  // VEND[7:0] (UXGA height)
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x32, 0x36);  // REG32: PCLK div 2 + window LSBs
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x03, 0x0F);  // COM1: 1 dummy frame + V window LSBs
+    }
+    else if (res == OV2640_RES_SVGA) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x17, 0x11);  // HREFST[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x18, 0x43);  // HREFEND[7:0] (adjusted for 800px)
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x19, 0x00);  // VSTRT[7:0] (starts at 0)
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x1A, 0x97);  // VEND[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x32, 0x09);  // REG32: PCLK div 4 + window LSBs
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x03, 0x0A);  // COM1: 0x0A for SVGA
+    }
+    else if (res == OV2640_RES_CIF) {
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x17, 0x11);  // HREFST[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x18, 0x43);  // HREFEND[7:0] (same as SVGA)
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x19, 0x00);  // VSTRT[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x1A, 0x97);  // VEND[7:0]
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x32, 0x09);  // REG32: same as SVGA
+        platform->sccbWriteReg(OV2640_SCCB_ID, 0x03, 0x06);  // COM1: 0x06 for CIF per datasheet
+    }
+
+    return true;
+}
+
+bool OV2640_SetCrop(const struct OV2640_Platform *platform,
+                    uint16_t x, uint16_t y,
+                    uint16_t width, uint16_t height) {
+
+    // Validate constraints
+    if ((x % 2) || (width % 2)) return false;      // Horizontal must be even
+    if ((y % 4) || (height % 4)) return false;     // Vertical must be multiple of 4 for UXGA
+
+    // Convert to register values (divide by 2 for horizontal, divide by 2 for vertical)
+    // Note: Vertical LSBs go to COM1[3:2] and COM1[1:0]
+    uint16_t href_st = x / 2;
+    uint16_t href_end = (x + width) / 2;
+    uint16_t vstrt = y / 2;  // Each unit = 2 lines
+    uint16_t vend = (y + height) / 2;
+
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0xFF, 0x01);  // Bank 1
+
+    // Horizontal window (MSBs in 0x17/0x18, LSBs in 0x32)
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x17, href_st & 0xFF);       // HREFST[7:0]
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x18, href_end & 0xFF);      // HREFEND[7:0]
+
+    // Vertical window (MSBs in 0x19/0x1A, LSBs in COM1[3:0])
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x19, vstrt & 0xFF);         // VSTRT[7:0]
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x1A, vend & 0xFF);          // VEND[7:0]
+
+    // Read current COM1 and REG32 to preserve other bits
+    uint8_t com1;
+    platform->sccbReadReg(OV2640_SCCB_ID, 0x03, &com1);
+    com1 &= ~0x0F;  // Clear bits [3:0]
+    com1 |= (vstrt >> 8) & 0x03;        // VSTRT[9:8] -> COM1[1:0]
+    com1 |= ((vend >> 6) & 0x0C);       // VEND[9:8] -> COM1[3:2] (shifted)
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x03, com1);
+
+    uint8_t reg32;
+    platform->sccbReadReg(OV2640_SCCB_ID, 0x32, &reg32);
+    reg32 &= ~0x3F;  // Clear bits [5:0] (window LSBs)
+    reg32 |= (href_st >> 8) & 0x07;     // HREFST[10:8] -> REG32[2:0]
+    reg32 |= ((href_end >> 5) & 0x38);  // HREFEND[10:8] -> REG32[5:3] (shifted)
+    platform->sccbWriteReg(OV2640_SCCB_ID, 0x32, reg32);
+
+    return true;
 }
 
 bool OV2640_SetOutSize(const struct OV2640_Platform *platform, uint16_t width, uint16_t height) {
