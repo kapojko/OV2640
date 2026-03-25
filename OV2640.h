@@ -87,6 +87,8 @@ bool OV2640_SetDefInit(const struct OV2640_Platform *platform);
 bool OV2640_DefInit(const struct OV2640_Platform *platform);
 
 bool OV2640_SetJpegMode(const struct OV2640_Platform *platform);
+bool OV2640_SetRGB565Mode(const struct OV2640_Platform *platform);
+bool OV2640_SetRAW10Mode(const struct OV2640_Platform *platform);
 
 /* NOTE: SetOutSize() function writes to DSP registers
     (0x5A, 0x5B, 0x5C — the Zoom Output Window registers).
