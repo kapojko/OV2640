@@ -92,7 +92,6 @@ const uint8_t OV2640_RAW10RegTbl[] =
 {
     // === Bank 0: DSP/Sensor Interface ===
     0xFF, 0x00,     // Select DSP bank
-    0x05, 0x01,     // R_BYPASS: Bypass DSP, sensor out directly (CRITICAL!)
     0xDA, 0x04,     // IMAGE_MODE: RAW10 output (01 in bits 3:2)
     0xD7, 0x03,     // R_DVP_SP: Output speed control
     0xDF, 0x02,     // Format control (from RGB565)
